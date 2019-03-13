@@ -28,7 +28,6 @@ import com.apollocurrency.aplwallet.apl.util.Constants;
 import com.apollocurrency.aplwallet.apl.core.transaction.messages.AbstractAppendix;
 import com.apollocurrency.aplwallet.apl.core.transaction.messages.AbstractAttachment;
 import com.apollocurrency.aplwallet.apl.core.transaction.messages.Appendix;
-import com.apollocurrency.aplwallet.apl.core.transaction.messages.Attachment;
 import com.apollocurrency.aplwallet.apl.core.transaction.messages.EncryptToSelfMessageAppendix;
 import com.apollocurrency.aplwallet.apl.core.transaction.messages.Encryptable;
 import com.apollocurrency.aplwallet.apl.core.transaction.messages.EncryptedMessageAppendix;
@@ -767,7 +766,7 @@ public class TransactionImpl implements Transaction {
                 throw new AplException.NotValidException("Transaction bytes too long, " + buffer.remaining() + " extra bytes");
             }
             return builder;
-        } catch (AplException.NotValidException|RuntimeException e) {
+        } catch (RuntimeException e) {
             LOG.debug("Failed to parse transaction bytes: " + Convert.toHexString(bytes));
             throw e;
         }
@@ -906,7 +905,7 @@ public class TransactionImpl implements Transaction {
                 builder.appendix(PrunableEncryptedMessageAppendix.parse(attachmentData));
             }
             return builder;
-        } catch (AplException.NotValidException|RuntimeException e) {
+        } catch (RuntimeException e) {
             LOG.debug("Failed to parse transaction: " + transactionData.toJSONString());
             throw e;
         }
@@ -947,7 +946,7 @@ public class TransactionImpl implements Transaction {
     }
 
     private int getSize() {
-        return signatureOffset() + 64  + 4 + 4 + 8 + appendagesSize;
+        return signatureOffset() + 64  + 4 + 4 + 8 + appendagesSize ;
     }
 
     @Override
@@ -1052,6 +1051,7 @@ public class TransactionImpl implements Transaction {
             };
         }
         
+
 
         boolean validatingAtFinish = phasing != null && getSignature() != null && PhasingPoll.getPoll(getId()) != null;
         for (AbstractAppendix appendage : appendages) {

@@ -691,6 +691,8 @@ public class AplDbVersion extends DbVersion {
             case 250:
                 apply("CREATE INDEX IF NOT EXISTS genesis_public_key_height_idx on genesis_public_key(height)");
             case 251:
+                apply("ALTER TABLE phasing_poll ADD finish_time INT NOT NULL DEFAULT -1;");
+            case 252 :
                 return;
             default:
                 throw new RuntimeException("Blockchain database inconsistent with code, at update " + nextUpdate

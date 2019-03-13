@@ -58,7 +58,7 @@ final class ProcessBlock extends PeerServlet.PeerRequestHandler {
                 try {
                     LOG.debug("API: need to process better peer block");
                     lookupBlockchainProcessor().processPeerBlock(request);
-                } catch (AplException | RuntimeException e) {
+                } catch (RuntimeException e) {
                     if (peer != null) {
                         peer.blacklist(e);
                     }

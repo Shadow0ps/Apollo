@@ -257,15 +257,36 @@ public final class PhasingPoll extends AbstractPoll {
         return phasingPollTable.get(phasingPollDbKeyFactory.newKey(id));
     }
 
-    static DbIterator<Transaction> getFinishingTransactions(int height) {
+    static List<Transaction> getFinishingTransactions(int height) {
         Connection con = null;
+        List<Transaction> transactions = new ArrayList<>();
         try {
             con = lookupDataSource().getConnection();
             PreparedStatement pstmt = con.prepareStatement("SELECT transaction.* FROM transaction, phasing_poll " +
                     "WHERE phasing_poll.id = transaction.id AND phasing_poll.finish_height = ? " +
                     "ORDER BY transaction.height, transaction.transaction_index"); // ASC, not DESC
             pstmt.setInt(1, height);
-            return blockchain.getTransactions(con, pstmt);
+
+            blockchain.getTransactions(con, pstmt).forEach(transactions::add);
+            return transactions;
+        } catch (SQLException e) {
+            DbUtils.close(con);
+            throw new RuntimeException(e.toString(), e);
+        }
+    }
+
+    static List<Transaction> getFinishingTransactionsByTime(int time) {
+        Connection con = null;
+        List<Transaction> transactions = new ArrayList<>();
+        try {
+            con = lookupDataSource().getConnection();
+            PreparedStatement pstmt = con.prepareStatement("SELECT transaction.* FROM transaction, phasing_poll " +
+                    "WHERE phasing_poll.id = transaction.id AND phasing_poll.finish_height = -1 AND phasing_poll.finish_time <= ? " +
+                    "ORDER BY transaction.height, transaction.transaction_index"); // ASC, not DESC
+            pstmt.setInt(1, time);
+            blockchain.getTransactions(con, pstmt).forEach(transactions::add);
+
+            return transactions;
         } catch (SQLException e) {
             DbUtils.close(con);
             throw new RuntimeException(e.toString(), e);
@@ -431,6 +452,7 @@ public final class PhasingPoll extends AbstractPoll {
     }
 
     private final DbKey dbKey;
+    private final int finishTime;
     private final long[] whitelist;
     private final long quorum;
     private final byte[] hashedSecret;
@@ -439,6 +461,7 @@ public final class PhasingPoll extends AbstractPoll {
     private PhasingPoll(Transaction transaction, PhasingAppendix appendix) {
         super(transaction.getId(), transaction.getSenderId(), appendix.getFinishHeight(), appendix.getVoteWeighting());
         this.dbKey = phasingPollDbKeyFactory.newKey(this.id);
+        this.finishTime = appendix.getFinishTime();
         this.quorum = appendix.getQuorum();
         this.whitelist = appendix.getWhitelist();
         this.hashedSecret = appendix.getHashedSecret();
@@ -448,24 +471,20 @@ public final class PhasingPoll extends AbstractPoll {
     private PhasingPoll(ResultSet rs, DbKey dbKey) throws SQLException {
         super(rs);
         this.dbKey = dbKey;
+        this.finishTime = rs.getInt("finish_time");
         this.quorum = rs.getLong("quorum");
         this.whitelist = rs.getByte("whitelist_size") == 0 ? Convert.EMPTY_LONG : Convert.toArray(votersTable.get(votersDbKeyFactory.newKey(this)));
         hashedSecret = rs.getBytes("hashed_secret");
         algorithm = rs.getByte("algorithm");
     }
 
-    private PhasingPoll(long id, long accountId, int finishHeight, VoteWeighting voteWeighting, DbKey dbKey, long[] whitelist, long quorum, byte[] hashedSecret, byte algorithm) {
-        super(id, accountId, finishHeight, voteWeighting);
-        this.dbKey = dbKey;
-        this.whitelist = whitelist;
-        this.quorum = quorum;
-        this.hashedSecret = hashedSecret;
-        this.algorithm = algorithm;
-    }
-
     public void finish(long result) {
         PhasingPollResult phasingPollResult = new PhasingPollResult(this, result);
         resultTable.insert(phasingPollResult);
+    }
+
+    public int getFinishTime() {
+        return finishTime;
     }
 
     public long[] getWhitelist() {
@@ -530,12 +549,13 @@ public final class PhasingPoll extends AbstractPoll {
 
     private void save(Connection con) throws SQLException {
         try (PreparedStatement pstmt = con.prepareStatement("INSERT INTO phasing_poll (id, account_id, "
-                + "finish_height, whitelist_size, voting_model, quorum, min_balance, holding_id, "
-                + "min_balance_model, hashed_secret, algorithm, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                + "finish_height, finish_time, whitelist_size, voting_model, quorum, min_balance, holding_id, "
+                + "min_balance_model, hashed_secret, algorithm, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             int i = 0;
             pstmt.setLong(++i, id);
             pstmt.setLong(++i, accountId);
             pstmt.setInt(++i, finishHeight);
+            pstmt.setInt(++i, finishTime);
             pstmt.setByte(++i, (byte) whitelist.length);
             pstmt.setByte(++i, voteWeighting.getVotingModel().getCode());
             DbUtils.setLongZeroToNull(pstmt, ++i, quorum);
