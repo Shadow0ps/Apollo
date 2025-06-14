@@ -78,9 +78,9 @@
         <apache-commons-net.version>3.6</apache-commons-net.version>
 
         <openjfx.version>12-ea+3</openjfx.version>
-        <tika.version>1.20</tika.version>
+        <tika.version>1.28</tika.version>
         <upnp.version>0.1.4</upnp.version>
-        <jackson.version>2.9.6</jackson.version>
+        <jackson.version>2.13.0</jackson.version>
         <!--Indexing-->
         <lucene.version>7.5.0</lucene.version>
 
